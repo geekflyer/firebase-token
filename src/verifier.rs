@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Claims {
     pub aud: String,
     pub exp: i64,
@@ -18,16 +18,17 @@ pub struct Claims {
 #[derive(Debug)]
 enum VerificationError {
     InvalidSignature,
+    InvalidDecodingKey,
     UnknownKeyAlgorithm,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct JwkConfig {
     pub audience: String,
     pub issuer: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct JwkVerifier {
     keys: HashMap<String, Jwk>,
     config: JwkConfig,
@@ -58,7 +59,7 @@ impl JwkVerifier {
     fn decode_token_with_key(
         &self,
         key: &Jwk,
-        token: &String,
+        token: &str,
     ) -> Result<TokenData<Claims>, VerificationError> {
         let algorithm = match Algorithm::from_str(&key.alg) {
             Ok(alg) => alg,
@@ -66,15 +67,18 @@ impl JwkVerifier {
         };
         let mut validation = Validation::new(algorithm);
         validation.set_audience(&[&self.config.audience]);
-        validation.iss = Some(self.config.issuer.clone());
-        let key = DecodingKey::from_rsa_components(&key.n, &key.e);
-        return decode::<Claims>(token, &key, &validation)
-            .map_err(|_| VerificationError::InvalidSignature);
+        validation.set_issuer(&[self.config.issuer.clone()]);
+        let key = DecodingKey::from_rsa_components(&key.n, &key.e).map_err(|err| {
+            log::error!("InvalidDecodingKey: {:?}", err);
+            VerificationError::InvalidDecodingKey
+        })?;
+
+        decode::<Claims>(token, &key, &validation).map_err(|_| VerificationError::InvalidSignature)
     }
     pub fn set_keys(&mut self, keys: Vec<Jwk>) {
         self.keys = keys_to_map(keys);
     }
-    pub fn verify(&self, token: &String) -> Option<TokenData<Claims>> {
+    pub fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
         let token_kid = match decode_header(token).map(|header| header.kid) {
             Ok(Some(header)) => header,
             _ => return None,
@@ -131,7 +135,7 @@ mod tests {
     #[test]
     fn test_get_config() {
         let keys = get_test_keys();
-        let verifier = JwkVerifier::new(keys.clone(), "aud".to_string(), "iss".to_string());
+        let verifier = JwkVerifier::new(keys, "aud".to_string(), "iss".to_string());
         assert_eq!(
             verifier.get_config(),
             Some(&JwkConfig {
@@ -144,7 +148,7 @@ mod tests {
     #[test]
     fn test_set_keys() {
         let keys = get_test_keys();
-        let mut verifier = JwkVerifier::new(keys.clone(), "aud".to_string(), "iss".to_string());
+        let mut verifier = JwkVerifier::new(keys, "aud".to_string(), "iss".to_string());
         verifier.set_keys(vec![]);
         assert!(verifier.get_key("kid-0").is_none());
     }

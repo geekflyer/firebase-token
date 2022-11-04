@@ -1,7 +1,9 @@
 mod header_parser;
 mod jwk;
-pub mod jwk_auth;
+mod jwk_auth;
 mod verifier;
+
+pub use jwk_auth::JwkAuth;
 
 #[cfg(test)]
 mod tests {
@@ -10,7 +12,7 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     pub const MAXAGE: u64 = 20045;
-    pub const PATH: &'static str = "/test";
+    pub const PATH: &str = "/test";
     pub fn get_test_keys() -> Vec<Jwk> {
         vec![
             Jwk {

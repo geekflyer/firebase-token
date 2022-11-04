@@ -2,7 +2,7 @@ use reqwest::header::HeaderValue;
 use reqwest::Response;
 use std::time::Duration;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MaxAgeParseError {
     NoMaxAgeStr,
     NoCacheControlKey,
@@ -28,9 +28,9 @@ fn parse_cache_control_value(value: &HeaderValue) -> Result<Duration, MaxAgePars
 }
 
 fn _parse_cache_control_value(value: &str) -> Result<Duration, MaxAgeParseError> {
-    let tokens: Vec<&str> = value.split(",").collect();
+    let tokens: Vec<&str> = value.split(',').collect();
     for token in tokens {
-        let kv: Vec<&str> = token.split("=").map(|s| s.trim()).collect();
+        let kv: Vec<&str> = token.split('=').map(|s| s.trim()).collect();
         let key = kv.first().unwrap();
         let value = kv.get(1);
         if String::from("max-age").eq(&key.to_lowercase()) {
@@ -48,7 +48,7 @@ fn _parse_cache_control_value(value: &str) -> Result<Duration, MaxAgeParseError>
             }
         }
     }
-    return Err(MaxAgeParseError::NoMaxAgeStr);
+    Err(MaxAgeParseError::NoMaxAgeStr)
 }
 
 #[cfg(test)]

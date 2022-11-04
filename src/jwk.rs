@@ -1,6 +1,5 @@
 use crate::header_parser::get_max_age;
 use async_trait::async_trait;
-use reqwest;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -20,13 +19,13 @@ pub struct Jwk {
     pub r#use: String,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Jwks {
     pub keys: Vec<Jwk>,
     pub validity: Duration,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct JwkFetcher {
     pub url: String,
 }
@@ -46,17 +45,17 @@ pub trait Fetcher {
 #[async_trait]
 impl Fetcher for JwkFetcher {
     fn new(url: String) -> JwkFetcher {
-        JwkFetcher { url: url }
+        JwkFetcher { url }
     }
     async fn fetch_keys(&self) -> Result<Jwks, KeyFetchError> {
         let response = reqwest::get(&self.url)
             .await
-            .map_err(|e| KeyFetchError::RequestError(e))?;
+            .map_err(KeyFetchError::RequestError)?;
         let max_age = get_max_age(&response).unwrap_or(DEFAULT_TIMEOUT);
         let response_body = response
             .json::<KeyResponse>()
             .await
-            .map_err(|e| KeyFetchError::ReponseBodyError(e))?;
+            .map_err(KeyFetchError::ReponseBodyError)?;
         return Ok(Jwks {
             keys: response_body.keys,
             validity: max_age,
@@ -87,7 +86,7 @@ mod tests {
         assert_eq!(
             result.unwrap(),
             Jwks {
-                keys: keys,
+                keys,
                 validity: Duration::from_secs(20045)
             }
         );

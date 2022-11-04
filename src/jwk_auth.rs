@@ -7,8 +7,8 @@ use std::time::Duration;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
-const ISSUER_URL: &'static str = "https://securetoken.google.com/";
-const DEFAULT_PUBKEY_URL: &'static str =
+const ISSUER_URL: &str = "https://securetoken.google.com/";
+const DEFAULT_PUBKEY_URL: &str =
     "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 
 pub struct JwkAuth {
@@ -52,7 +52,7 @@ impl JwkAuth {
         instance.start_periodic_key_update();
         instance
     }
-    pub fn verify(&self, token: &String) -> Option<TokenData<Claims>> {
+    pub fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
         let verifier = self.verifier.lock().unwrap();
         verifier.verify(token)
     }
