@@ -2,43 +2,45 @@ use crate::header_parser::get_max_age;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct KeyResponse {
-    pub keys: Vec<Jwk>,
+pub(crate) struct KeyResponse {
+    pub(crate) keys: Vec<Jwk>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
-pub struct Jwk {
-    pub e: String,
-    pub alg: String,
-    pub kty: String,
-    pub kid: String,
-    pub n: String,
-    pub r#use: String,
+pub(crate) struct Jwk {
+    pub(crate) e: String,
+    pub(crate) alg: String,
+    pub(crate) kty: String,
+    pub(crate) kid: String,
+    pub(crate) n: String,
+    pub(crate) r#use: String,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Jwks {
-    pub keys: Vec<Jwk>,
-    pub validity: Duration,
+pub(crate) struct Jwks {
+    pub(crate) keys: Vec<Jwk>,
+    pub(crate) validity: Duration,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct JwkFetcher {
-    pub url: String,
+pub(crate) struct JwkFetcher {
+    pub(crate) url: String,
 }
 
 #[derive(Debug)]
-pub enum KeyFetchError {
+pub(crate) enum KeyFetchError {
     RequestError(reqwest::Error),
     ReponseBodyError(reqwest::Error),
 }
 
 #[async_trait]
-pub trait Fetcher {
+pub(crate) trait Fetcher {
     fn new(url: String) -> Self;
+
     async fn fetch_keys(&self) -> Result<Jwks, KeyFetchError>;
 }
 
@@ -47,6 +49,7 @@ impl Fetcher for JwkFetcher {
     fn new(url: String) -> JwkFetcher {
         JwkFetcher { url }
     }
+
     async fn fetch_keys(&self) -> Result<Jwks, KeyFetchError> {
         let response = reqwest::get(&self.url)
             .await

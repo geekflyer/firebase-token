@@ -11,6 +11,7 @@ const ISSUER_URL: &str = "https://securetoken.google.com/";
 const DEFAULT_PUBKEY_URL: &str =
     "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 
+#[derive(Clone)]
 pub struct JwkAuth {
     verifier: Arc<Mutex<JwkVerifier>>,
     fetcher: Arc<JwkFetcher>,
@@ -27,9 +28,10 @@ impl Drop for JwkAuth {
 impl JwkAuth {
     pub async fn new(project_id: String) -> JwkAuth {
         let pubkey_url = DEFAULT_PUBKEY_URL.to_string();
-        Self::_new(project_id, pubkey_url).await
+        Self::new_with_url(project_id, pubkey_url).await
     }
-    pub async fn _new(project_id: String, pubkey_url: String) -> JwkAuth {
+
+    pub async fn new_with_url(project_id: String, pubkey_url: String) -> JwkAuth {
         let issuer = format!("{}{}", ISSUER_URL, project_id.clone());
         let audience = project_id;
         let fetcher = JwkFetcher::new(pubkey_url);
@@ -52,10 +54,12 @@ impl JwkAuth {
         instance.start_periodic_key_update();
         instance
     }
+
     pub fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
         let verifier = self.verifier.lock().unwrap();
         verifier.verify(token)
     }
+
     fn start_periodic_key_update(&mut self) {
         let verifier_ref = Arc::clone(&self.verifier);
         let fetcher_ref = Arc::clone(&self.fetcher);
@@ -96,7 +100,7 @@ mod tests {
         let mock_server = get_mock_server().await;
         let project_id = "pj".to_string();
 
-        let jwk_auth = JwkAuth::_new(project_id.clone(), get_mock_url(&mock_server)).await;
+        let jwk_auth = JwkAuth::new_with_url(project_id.clone(), get_mock_url(&mock_server)).await;
         let verifier = jwk_auth.verifier.lock().unwrap();
 
         assert_eq!(verifier.get_key("kid-0"), Some(&keys[0]));

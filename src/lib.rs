@@ -4,6 +4,7 @@ mod jwk_auth;
 mod verifier;
 
 pub use jwk_auth::JwkAuth;
+pub use verifier::Claims;
 
 #[cfg(test)]
 mod tests {
@@ -11,9 +12,9 @@ mod tests {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    pub const MAXAGE: u64 = 20045;
-    pub const PATH: &str = "/test";
-    pub fn get_test_keys() -> Vec<Jwk> {
+    pub(crate) const MAXAGE: u64 = 20045;
+    pub(crate) const PATH: &str = "/test";
+    pub(crate) fn get_test_keys() -> Vec<Jwk> {
         vec![
             Jwk {
                 alg: "RS256".to_string(),
@@ -33,7 +34,8 @@ mod tests {
             },
         ]
     }
-    pub async fn get_mock_server() -> MockServer {
+
+    pub(crate) async fn get_mock_server() -> MockServer {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("GET"))
@@ -55,7 +57,7 @@ mod tests {
         mock_server
     }
 
-    pub async fn get_mock_server_invalid_response() -> MockServer {
+    pub(crate) async fn get_mock_server_invalid_response() -> MockServer {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("GET"))
@@ -67,7 +69,7 @@ mod tests {
         mock_server
     }
 
-    pub fn get_mock_url(mock_server: &MockServer) -> String {
+    pub(crate) fn get_mock_url(mock_server: &MockServer) -> String {
         format!("{}{}", mock_server.uri(), PATH)
     }
 }

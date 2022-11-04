@@ -23,13 +23,13 @@ enum VerificationError {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct JwkConfig {
-    pub audience: String,
-    pub issuer: String,
+pub(crate) struct JwkConfig {
+    pub(crate) audience: String,
+    pub(crate) issuer: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct JwkVerifier {
+pub(crate) struct JwkVerifier {
     keys: HashMap<String, Jwk>,
     config: JwkConfig,
 }
@@ -43,19 +43,22 @@ fn keys_to_map(keys: Vec<Jwk>) -> HashMap<String, Jwk> {
 }
 
 impl JwkVerifier {
-    pub fn new(keys: Vec<Jwk>, audience: String, issuer: String) -> JwkVerifier {
+    pub(crate) fn new(keys: Vec<Jwk>, audience: String, issuer: String) -> JwkVerifier {
         JwkVerifier {
             keys: keys_to_map(keys),
             config: JwkConfig { audience, issuer },
         }
     }
-    pub fn get_key(&self, key_id: &str) -> Option<&Jwk> {
+
+    pub(crate) fn get_key(&self, key_id: &str) -> Option<&Jwk> {
         self.keys.get(key_id)
     }
+
     #[cfg(test)]
-    pub fn get_config(&self) -> Option<&JwkConfig> {
+    pub(crate) fn get_config(&self) -> Option<&JwkConfig> {
         Some(&self.config)
     }
+
     fn decode_token_with_key(
         &self,
         key: &Jwk,
@@ -75,10 +78,12 @@ impl JwkVerifier {
 
         decode::<Claims>(token, &key, &validation).map_err(|_| VerificationError::InvalidSignature)
     }
-    pub fn set_keys(&mut self, keys: Vec<Jwk>) {
+
+    pub(crate) fn set_keys(&mut self, keys: Vec<Jwk>) {
         self.keys = keys_to_map(keys);
     }
-    pub fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
+
+    pub(crate) fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
         let token_kid = match decode_header(token).map(|header| header.kid) {
             Ok(Some(header)) => header,
             _ => return None,

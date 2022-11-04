@@ -3,14 +3,14 @@ use reqwest::Response;
 use std::time::Duration;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum MaxAgeParseError {
+pub(crate) enum MaxAgeParseError {
     NoMaxAgeStr,
     NoCacheControlKey,
     NoCacheControlValue,
     NotNumericValue,
 }
 
-pub fn get_max_age(response: &Response) -> Result<Duration, MaxAgeParseError> {
+pub(crate) fn get_max_age(response: &Response) -> Result<Duration, MaxAgeParseError> {
     let headers = response.headers();
     let cache_control = headers.get("Cache-Control");
 
