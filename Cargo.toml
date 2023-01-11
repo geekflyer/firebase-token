@@ -1,6 +1,6 @@
 [package]
 name = "firebase-token"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["Bob <bob22.zhang@gmail.com>"]
 edition = "2021"
 license = "MIT"

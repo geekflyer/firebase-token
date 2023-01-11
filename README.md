@@ -2,11 +2,9 @@
 
 ## About
 
-Validate firabase ID token for web backend written in Rust
+Validate firabase ID token written in Rust
 
-[![Crates.io][crates-badge]][crates-url]
-
-[crates-url]: https://crates.io/crates/firebase-token
+[Crates.io](https://crates.io/crates/firebase-token)
 
 [API Docs](https://docs.rs/firebase-token)
 
@@ -14,9 +12,16 @@ Validate firabase ID token for web backend written in Rust
 
 Add the following to Cargo.toml:
 
-```
+```toml
 [dependencies]
-firebase-token = "0.2.0"
+firebase-token = "0.3"
+```
+
+```rust
+use firebase_token::JwkAuth;
+
+let jwk_auth = JwkAuth::new(FIREBASE_PROJECT_ID).await;
+let token_claim = jwk_auth.verify(id_token).await;
 ```
 
 ## License
