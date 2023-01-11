@@ -72,7 +72,7 @@ impl JwkVerifier {
         validation.set_audience(&[&self.config.audience]);
         validation.set_issuer(&[self.config.issuer.clone()]);
         let key = DecodingKey::from_rsa_components(&key.n, &key.e).map_err(|err| {
-            log::error!("InvalidDecodingKey: {:?}", err);
+            tracing::error!("InvalidDecodingKey: {:?}", err);
             VerificationError::InvalidDecodingKey
         })?;
 

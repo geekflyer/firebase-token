@@ -1,11 +1,9 @@
-use crate::jwk::{Fetcher, JwkFetcher};
+use crate::jwk::JwkFetcher;
 use crate::verifier::{Claims, JwkVerifier};
 use jsonwebtoken::TokenData;
-use log::info;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::task::JoinHandle;
-use tokio::time::sleep;
+use tokio::sync::Mutex;
 
 const ISSUER_URL: &str = "https://securetoken.google.com/";
 const DEFAULT_PUBKEY_URL: &str =
@@ -14,15 +12,6 @@ const DEFAULT_PUBKEY_URL: &str =
 #[derive(Clone)]
 pub struct JwkAuth {
     verifier: Arc<Mutex<JwkVerifier>>,
-    fetcher: Arc<JwkFetcher>,
-    task_handler: Arc<Mutex<Box<JoinHandle<()>>>>,
-}
-
-impl Drop for JwkAuth {
-    fn drop(&mut self) {
-        let handler = self.task_handler.lock().unwrap();
-        handler.abort();
-    }
 }
 
 impl JwkAuth {
@@ -35,56 +24,54 @@ impl JwkAuth {
         let issuer = format!("{}{}", ISSUER_URL, project_id.clone());
         let audience = project_id;
         let fetcher = JwkFetcher::new(pubkey_url);
+
         let jwk_key_result = fetcher.fetch_keys().await;
         let jwk_keys = match jwk_key_result {
             Ok(keys) => keys,
-            Err(_) => {
-                panic!("Unable to fetch jwk keys!")
+            Err(err) => {
+                panic!("Unable to fetch jwk keys {:?}!", err)
             }
         };
-        let mut instance = JwkAuth {
-            verifier: Arc::new(Mutex::new(JwkVerifier::new(
-                jwk_keys.keys,
-                audience,
-                issuer,
-            ))),
-            fetcher: Arc::new(fetcher),
-            task_handler: Arc::new(Mutex::new(Box::new(tokio::spawn(async {})))),
-        };
-        instance.start_periodic_key_update();
-        instance
+
+        let verifier = Arc::new(Mutex::new(JwkVerifier::new(
+            jwk_keys.keys,
+            audience,
+            issuer,
+        )));
+
+        Self::start_periodic_key_update(fetcher, verifier.clone());
+
+        JwkAuth { verifier }
     }
 
-    pub fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
-        let verifier = self.verifier.lock().unwrap();
+    pub async fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
+        let verifier = self.verifier.lock().await;
         verifier.verify(token)
     }
 
-    fn start_periodic_key_update(&mut self) {
-        let verifier_ref = Arc::clone(&self.verifier);
-        let fetcher_ref = Arc::clone(&self.fetcher);
-        let task = tokio::spawn(async move {
+    fn start_periodic_key_update(fetcher: JwkFetcher, verifier: Arc<Mutex<JwkVerifier>>) {
+        tokio::spawn(async move {
             loop {
-                let fetch_result = fetcher_ref.fetch_keys().await;
+                let fetch_result = fetcher.fetch_keys().await;
                 let delay = match fetch_result {
                     Ok(jwk_keys) => {
-                        {
-                            let mut verifier = verifier_ref.lock().unwrap();
-                            verifier.set_keys(jwk_keys.keys);
-                        }
-                        info!(
+                        let mut verifier = verifier.lock().await;
+                        verifier.set_keys(jwk_keys.keys);
+                        tracing::info!(
                             "Updated JWK Keys. Next refresh will be in {:?}",
                             jwk_keys.validity
                         );
                         jwk_keys.validity
                     }
-                    Err(_) => Duration::from_secs(60),
+                    Err(err) => {
+                        tracing::error!("Update JWK Keys Error {:?}", err);
+                        Duration::from_secs(10)
+                    }
                 };
-                sleep(delay).await;
+                tracing::info!("Fetcher sleeps {:?}", delay);
+                tokio::time::sleep(delay).await;
             }
         });
-        let mut handler = self.task_handler.lock().unwrap();
-        *handler = Box::new(task);
     }
 }
 
@@ -101,7 +88,7 @@ mod tests {
         let project_id = "pj".to_string();
 
         let jwk_auth = JwkAuth::new_with_url(project_id.clone(), get_mock_url(&mock_server)).await;
-        let verifier = jwk_auth.verifier.lock().unwrap();
+        let verifier = jwk_auth.verifier.lock().await;
 
         assert_eq!(verifier.get_key("kid-0"), Some(&keys[0]));
         assert_eq!(verifier.get_key("kid-1"), Some(&keys[1]));

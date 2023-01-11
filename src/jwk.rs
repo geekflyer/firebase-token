@@ -1,5 +1,4 @@
 use crate::header_parser::get_max_age;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -37,32 +36,27 @@ pub(crate) enum KeyFetchError {
     ReponseBodyError(reqwest::Error),
 }
 
-#[async_trait]
-pub(crate) trait Fetcher {
-    fn new(url: String) -> Self;
-
-    async fn fetch_keys(&self) -> Result<Jwks, KeyFetchError>;
-}
-
-#[async_trait]
-impl Fetcher for JwkFetcher {
-    fn new(url: String) -> JwkFetcher {
+impl JwkFetcher {
+    pub(crate) fn new(url: String) -> JwkFetcher {
         JwkFetcher { url }
     }
 
-    async fn fetch_keys(&self) -> Result<Jwks, KeyFetchError> {
+    pub(crate) async fn fetch_keys(&self) -> Result<Jwks, KeyFetchError> {
         let response = reqwest::get(&self.url)
             .await
             .map_err(KeyFetchError::RequestError)?;
         let max_age = get_max_age(&response).unwrap_or(DEFAULT_TIMEOUT);
+        tracing::info!("JwkFetcher::fetch_keys max_age:{:?}", max_age);
+
         let response_body = response
             .json::<KeyResponse>()
             .await
             .map_err(KeyFetchError::ReponseBodyError)?;
-        return Ok(Jwks {
+
+        Ok(Jwks {
             keys: response_body.keys,
             validity: max_age,
-        });
+        })
     }
 }
 

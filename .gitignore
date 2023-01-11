@@ -1,4 +1,3 @@
 /target
 Cargo.lock
-note.md
-.env
+.idea
