@@ -2,12 +2,13 @@ use crate::jwk::Jwk;
 use jsonwebtoken::decode_header;
 use jsonwebtoken::TokenData;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Claims {
+pub struct BasicClaims {
     pub aud: String,
     pub exp: i64,
     pub iss: String,
@@ -59,11 +60,11 @@ impl JwkVerifier {
         Some(&self.config)
     }
 
-    fn decode_token_with_key(
+    fn decode_token_with_key<'a, C: DeserializeOwned + 'a>(
         &self,
         key: &Jwk,
         token: &str,
-    ) -> Result<TokenData<Claims>, VerificationError> {
+    ) -> Result<TokenData<C>, VerificationError> {
         let algorithm = match Algorithm::from_str(&key.alg) {
             Ok(alg) => alg,
             Err(_error) => return Err(VerificationError::UnknownKeyAlgorithm),
@@ -76,14 +77,14 @@ impl JwkVerifier {
             VerificationError::InvalidDecodingKey
         })?;
 
-        decode::<Claims>(token, &key, &validation).map_err(|_| VerificationError::InvalidSignature)
+        decode::<C>(token, &key, &validation).map_err(|_| VerificationError::InvalidSignature)
     }
 
     pub(crate) fn set_keys(&mut self, keys: Vec<Jwk>) {
         self.keys = keys_to_map(keys);
     }
 
-    pub(crate) fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
+    pub(crate) fn verify<'a, C: DeserializeOwned + 'a>(&self, token: &str) -> Option<TokenData<C>> {
         let token_kid = match decode_header(token).map(|header| header.kid) {
             Ok(Some(header)) => header,
             _ => return None,

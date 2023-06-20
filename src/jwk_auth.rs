@@ -1,6 +1,7 @@
 use crate::jwk::JwkFetcher;
-use crate::verifier::{Claims, JwkVerifier};
+use crate::verifier::JwkVerifier;
 use jsonwebtoken::TokenData;
+use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -44,7 +45,7 @@ impl JwkAuth {
         JwkAuth { verifier }
     }
 
-    pub async fn verify(&self, token: &str) -> Option<TokenData<Claims>> {
+    pub async fn verify<'a, C: DeserializeOwned + 'a>(&self, token: &str) -> Option<TokenData<C>> {
         let verifier = self.verifier.lock().await;
         verifier.verify(token)
     }

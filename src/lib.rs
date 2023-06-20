@@ -4,7 +4,7 @@ mod jwk_auth;
 mod verifier;
 
 pub use jwk_auth::JwkAuth;
-pub use verifier::Claims;
+pub use verifier::BasicClaims;
 
 #[cfg(test)]
 mod tests {
